@@ -45,6 +45,7 @@
 
             const dest = document.querySelector('#dest');
             dest.innerHTML = '<span>計算中...</span>';
+            err.innerHTML = '';
 
             const re = /^(https\:\/\/www\.youtube\.com\/playlist\?list\=)?(.*?)$/;
             requestPlaylistItems(re.exec(document.querySelector('#playlist').value)[2]);
