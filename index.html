@@ -84,12 +84,16 @@
                 }
             }).execute((response) => {
                 if (!response.error) {
+                    let videoIds = [];
                     for (const item of response.items) {
-                        requestVideos(item.snippet.resourceId.videoId);
+                        videoIds.push(item.snippet.resourceId.videoId);
                     }
+                    if (videoIds.length > 0) {
+                        requestVideos(videoIds.join(','));
 
-                    if (response.nextPageToken) {
-                        requestPlaylistItems(playlistId, response.nextPageToken);
+                        if (response.nextPageToken) {
+                            requestPlaylistItems(playlistId, response.nextPageToken);
+                        }
                     }
                 } else {
                     err.innerHTML += '<div>' + response.error.message + '</div>';
