@@ -1,4 +1,126 @@
-<h1>Sum Time Playlist</h1>
-<script>
+<html>
 
-</script>
+<head>
+    <script>
+        window.onJSClientLoad = () => {
+            gapi.client.setApiKey('AIzaSyAkZBTndecweUH70ilf_QeCDPDrC1ZtRPs');
+            gapi.client.load('youtube', 'v3');
+        };
+    </script>
+    <script src="https://apis.google.com/js/client.js?onload=onJSClientLoad"></script>
+    <script>
+        const iso8601 = /^P([0-9]*D)?T([0-9]*H)?([0-9]*M)?([0-9]*S)?$/;
+        function convert(duration) {
+            const result = iso8601.exec(duration);
+            const days = parseInt(result[1], 10) || 0;
+            const hours = parseInt(result[2], 10) || 0;
+            const minutes = parseInt(result[3], 10) || 0;
+            const seconds = parseInt(result[4], 10) || 0;
+            return days * 86400 + hours * 3600 + minutes * 60 + seconds;
+        }
+    </script>
+</head>
+
+<body>
+    <h1 style="font-size: large;">公開プレイリストの合計時間を計算する</h1>
+    <div>Playlist ID or URL: <input type="text" id="playlist" size="80" /></div>
+    <div><button onClick="request();">計算する</button></div>
+    <div>合計時間: <span id="dest" /></div>
+    <div id="err" style="color: red;"></div>
+
+    <script>
+        const err = document.querySelector('#err');
+
+        let requestCount;
+        let duration;
+
+        function request() {
+            requestCount = 0;
+            duration = 0;
+
+            const dest = document.querySelector('#dest');
+            dest.innerHTML = '<span>計算中...</span>';
+
+            const re = /^(https\:\/\/www\.youtube\.com\/playlist\?list\=)?(.*?)$/;
+            requestPlaylistItems(re.exec(document.querySelector('#playlist').value)[2]);
+
+            const interval = setInterval(() => {
+                if (requestCount === 0) {
+                    clearInterval(interval);
+                    const hours = Math.floor(duration / 3600);
+                    const minutes = Math.floor((duration - hours * 3600) / 60);
+                    const seconds = Math.floor(duration - hours * 3600 - minutes * 60);
+                    let time = '<span>';
+                    if (hours !== 0) {
+                        time += hours + ' 時間 ';
+                    }
+                    if (minutes !== 0) {
+                        time += minutes + ' 分 ';
+                    }
+                    if (seconds !== 0) {
+                        time += seconds + ' 秒 ';
+                    }
+                    dest.innerHTML = time + '</span>';
+                }
+            }, 100);
+        }
+
+        function requestPlaylistItems(playlistId, pageToken) {
+            requestCount++;
+
+            return gapi.client.request({
+                path: '/youtube/v3/playlistItems',
+                params: {
+                    playlistId: playlistId,
+                    part: 'snippet',
+                    maxResults: 50,
+                    pageToken: pageToken,
+                }
+            }).execute((response) => {
+                if (!response.error) {
+                    for (const item of response.items) {
+                        requestVideos(item.snippet.resourceId.videoId);
+                    }
+
+                    if (response.nextPageToken) {
+                        requestPlaylistItems(playlistId, response.nextPageToken);
+                    }
+                } else {
+                    err.innerHTML += '<div>' + response.error.message + '</div>';
+                }
+
+                requestCount--;
+            });
+        }
+
+        function requestVideos(videoId, pageToken) {
+            requestCount++;
+
+            return gapi.client.request({
+                path: '/youtube/v3/videos',
+                params: {
+                    id: videoId,
+                    part: 'contentDetails',
+                    maxResults: 50,
+                    pageToken: pageToken,
+                }
+            }).execute((response) => {
+                if (!response.error) {
+                    for (const item of response.items) {
+                        duration += convert(item.contentDetails.duration);
+                    }
+
+                    if (response.nextPageToken) {
+                        requestVideos(videoId, response.nextPageToken);
+                    }
+                } else {
+                    err.innerHTML += '<div>' + response.error.message + '</div>';
+                }
+
+                requestCount--;
+            });
+        }
+    </script>
+</body>
+
+</html>
